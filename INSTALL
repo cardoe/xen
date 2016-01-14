@@ -82,8 +82,8 @@ them ocaml development packages must be installed. If they are missing
 configure will automatically disable this option.
   --disable-ocamltools
 
-Disable XSM policy compilation.
-  --disable-xsmpolicy
+Enable FLASK policy and tools build for XSM
+  --enable-flask
 
 Attempt to build of an OVMF firmware binary. This requires special
 versions of development tools. Use at your own risk.

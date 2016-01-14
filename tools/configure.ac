@@ -80,7 +80,7 @@ AX_ARG_DEFAULT_DISABLE([rpath], [Build tools with -Wl,-rpath,LIBDIR])
 AX_ARG_DEFAULT_DISABLE([githttp], [Download GIT repositories via HTTP])
 AX_ARG_DEFAULT_ENABLE([monitors], [Disable xenstat and xentop monitoring tools])
 AX_ARG_DEFAULT_ENABLE([ocamltools], [Disable Ocaml tools])
-AX_ARG_DEFAULT_ENABLE([xsmpolicy], [Disable XSM policy compilation])
+AX_ARG_DEFAULT_DISABLE([flask], [Enable building FLASK policy and tools for XSM])
 AX_ARG_DEFAULT_DISABLE([ovmf], [Enable OVMF])
 AX_ARG_DEFAULT_ENABLE([seabios], [Disable SeaBIOS])
 

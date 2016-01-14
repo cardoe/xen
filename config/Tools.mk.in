@@ -50,7 +50,7 @@ GIT_HTTP            := @githttp@
 # Optional components
 XENSTAT_XENTOP      := @monitors@
 OCAML_TOOLS         := @ocamltools@
-FLASK_POLICY        := @xsmpolicy@
+CONFIG_FLASK        := @flask@
 CONFIG_OVMF         := @ovmf@
 CONFIG_ROMBIOS      := @rombios@
 CONFIG_SEABIOS      := @seabios@
