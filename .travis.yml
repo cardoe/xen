@@ -1,6 +1,7 @@
 language: c
 dist: trusty
-sudo: required
+services:
+    - docker
 # don't test master, smoke and coverity branches
 branches:
     except:
@@ -40,6 +41,8 @@ matrix:
           env: XEN_TARGET_ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- XEN_CONFIG_EXPERT=y RANDCONFIG=y debug=n
         - compiler: gcc
           env: XEN_TARGET_ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- debug=y
+        - compiler: gcc
+          env: CONTAINER=cardoe/centos-xen-build XEN_TARGET_ARCH=x86_64 debug=n
 addons:
     apt:
         sources:
@@ -75,16 +78,22 @@ addons:
             - gcc-5
             - g++-5
             - clang-3.8
+before_install:
+    - test "x${CONTAINER}" = "x" || docker pull ${CONTAINER}
 # we must set CXX manually instead of using 'language: cpp' due to
 # travis-ci/travis-ci#3871
 before_script:
     - export CXX=${CC/cc/++}
     - export CXX=${CXX/clang/clang++}
 script:
-    - ( [ "x${RANDCONFIG}" = "xy" ] && ( make -C xen randconfig )
-      || exit 0 )
-    - ( ./configure --disable-tools --disable-stubdom --enable-docs &&
-      make dist )
+    - if [ "x${CONTAINER}" = "x" ]; then
+        [ "x${RANDCONFIG}" = "xy" ] && make -C xen randconfig;
+        ./configure --disable-tools --disable-stubdom --enable-docs;
+        make dist;
+      else
+        docker run -v $(pwd):/build ${CONTAINER} /bin/sh -c './configure --disable-tools --disable-stubdom --enable-docs';
+        docker run -v $(pwd):/build ${CONTAINER} /bin/sh -c 'make dist';
+      fi
 after_script:
     - cat xen/.config
 notifications:
