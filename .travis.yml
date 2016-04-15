@@ -80,6 +80,7 @@ addons:
 before_script:
     - export CXX=${CC/cc/++}
     - export CXX=${CXX/clang/clang++}
+    - [ "x${clang}" = "xy" ] && alias gcc=false
 script:
     - ( [ "x${RANDCONFIG}" = "xy" ] && ( make -C xen randconfig )
       || exit 0 )
