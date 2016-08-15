@@ -61,8 +61,6 @@ extern void set_mtrr_ops(const struct mtrr_ops *);
 extern u64 size_or_mask, size_and_mask;
 extern const struct mtrr_ops *mtrr_if;
 
-#define is_cpu(vnd)	(X86_VENDOR_INTEL == X86_VENDOR_##vnd)
-
 extern unsigned int num_var_ranges;
 
 void mtrr_state_warn(void);
