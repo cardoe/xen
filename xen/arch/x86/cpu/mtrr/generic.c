@@ -555,15 +555,3 @@ int mtrr_generic_have_wrcomb(void)
 	rdmsrl(MSR_MTRRcap, config);
 	return (config & (1ULL << 10));
 }
-
-/* generic structure...
- */
-const struct mtrr_ops generic_mtrr_ops = {
-	.use_intel_if      = 1,
-	.set_all	   = mtrr_generic_set_all,
-	.get               = mtrr_generic_get,
-	.get_free_region   = mtrr_generic_get_free_region,
-	.set               = mtrr_generic_set,
-	.validate_add_page = mtrr_generic_validate_add_page,
-	.have_wrcomb       = mtrr_generic_have_wrcomb,
-};

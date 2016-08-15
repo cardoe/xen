@@ -11,24 +11,6 @@
 #define MTRR_CHANGE_MASK_VARIABLE  0x02
 #define MTRR_CHANGE_MASK_DEFTYPE   0x04
 
-
-struct mtrr_ops {
-	u32	vendor;
-	u32	use_intel_if;
-//	void	(*init)(void);
-	void	(*set)(unsigned int reg, unsigned long base,
-		       unsigned long size, mtrr_type type);
-	void	(*set_all)(void);
-
-	void	(*get)(unsigned int reg, unsigned long *base,
-		       unsigned long *size, mtrr_type * type);
-	int	(*get_free_region)(unsigned long base, unsigned long size,
-				   int replace_reg);
-	int	(*validate_add_page)(unsigned long base, unsigned long size,
-				     unsigned int type);
-	int	(*have_wrcomb)(void);
-};
-
 void mtrr_generic_get(unsigned int reg, unsigned long *base,
         unsigned long *size, mtrr_type *type);
 int mtrr_generic_get_free_region(unsigned long base, unsigned long size,
@@ -39,8 +21,6 @@ void mtrr_generic_set_all(void);
 void mtrr_generic_set(unsigned int reg, unsigned long base,
         unsigned long size, mtrr_type type);
 int mtrr_generic_have_wrcomb(void);
-
-extern const struct mtrr_ops generic_mtrr_ops;
 
 /* library functions for processor-specific routines */
 struct set_mtrr_context {
@@ -56,10 +36,7 @@ void set_mtrr_prepare_save(struct set_mtrr_context *ctxt);
 
 void get_mtrr_state(void);
 
-extern void set_mtrr_ops(const struct mtrr_ops *);
-
 extern u64 size_or_mask, size_and_mask;
-extern const struct mtrr_ops *mtrr_if;
 
 extern unsigned int num_var_ranges;
 
