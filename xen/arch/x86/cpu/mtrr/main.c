@@ -82,12 +82,7 @@ static void __init set_num_var_ranges(void)
 {
 	unsigned long config = 0;
 
-	if (use_intel()) {
-		rdmsrl(MSR_MTRRcap, config);
-	} else if (is_cpu(AMD))
-		config = 2;
-	else if (is_cpu(CYRIX) || is_cpu(CENTAUR))
-		config = 8;
+    rdmsrl(MSR_MTRRcap, config);
 	num_var_ranges = config & 0xff;
 }
 
@@ -561,13 +556,12 @@ void __init mtrr_bp_init(void)
 
 	set_num_var_ranges();
 	init_table();
-	if (use_intel())
-		get_mtrr_state();
+	get_mtrr_state();
 }
 
 void mtrr_ap_init(void)
 {
-	if (!use_intel() || hold_mtrr_updates_on_aps)
+	if (hold_mtrr_updates_on_aps)
 		return;
 	/*
 	 * Ideally we should hold mtrr_mutex here to avoid mtrr entries changed,
@@ -596,30 +590,23 @@ void mtrr_save_state(void)
 
 void mtrr_aps_sync_begin(void)
 {
-	if (!use_intel())
-		return;
 	hold_mtrr_updates_on_aps = 1;
 }
 
 void mtrr_aps_sync_end(void)
 {
-	if (!use_intel())
-		return;
 	set_mtrr(~0U, 0, 0, 0);
 	hold_mtrr_updates_on_aps = 0;
 }
 
 void mtrr_bp_restore(void)
 {
-	if (!use_intel())
-		return;
 	mtrr_generic_set_all();
 }
 
 static int __init mtrr_init_finialize(void)
 {
-	if (use_intel())
-		mtrr_state_warn();
+    mtrr_state_warn();
 	return 0;
 }
 __initcall(mtrr_init_finialize);

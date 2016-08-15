@@ -62,7 +62,6 @@ extern u64 size_or_mask, size_and_mask;
 extern const struct mtrr_ops *mtrr_if;
 
 #define is_cpu(vnd)	(X86_VENDOR_INTEL == X86_VENDOR_##vnd)
-#define use_intel()	(1)
 
 extern unsigned int num_var_ranges;
 
