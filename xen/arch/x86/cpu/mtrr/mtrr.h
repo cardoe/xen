@@ -29,10 +29,16 @@ struct mtrr_ops {
 	int	(*have_wrcomb)(void);
 };
 
-extern int generic_get_free_region(unsigned long base, unsigned long size,
-				   int replace_reg);
-extern int generic_validate_add_page(unsigned long base, unsigned long size,
-				     unsigned int type);
+void mtrr_generic_get(unsigned int reg, unsigned long *base,
+        unsigned long *size, mtrr_type *type);
+int mtrr_generic_get_free_region(unsigned long base, unsigned long size,
+        int replace_reg);
+int mtrr_generic_validate_add_page(unsigned long base, unsigned long size,
+        unsigned int type);
+void mtrr_generic_set_all(void);
+void mtrr_generic_set(unsigned int reg, unsigned long base,
+        unsigned long size, mtrr_type type);
+int mtrr_generic_have_wrcomb(void);
 
 extern const struct mtrr_ops generic_mtrr_ops;
 

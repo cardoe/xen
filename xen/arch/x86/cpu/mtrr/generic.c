@@ -250,7 +250,7 @@ static void set_fixed_range(int msr, int * changed, unsigned int * msrwords)
 	}
 }
 
-int generic_get_free_region(unsigned long base, unsigned long size, int replace_reg)
+int mtrr_generic_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 /*  [SUMMARY] Get a free MTRR.
     <base> The starting (base) address of the region.
     <size> The size (in bytes) of the region.
@@ -272,7 +272,7 @@ int generic_get_free_region(unsigned long base, unsigned long size, int replace_
 	return -ENOSPC;
 }
 
-static void generic_get_mtrr(unsigned int reg, unsigned long *base,
+void mtrr_generic_get(unsigned int reg, unsigned long *base,
 			     unsigned long *size, mtrr_type *type)
 {
 	uint64_t _mask, _base;
@@ -448,7 +448,7 @@ static void post_set(void)
 	spin_unlock(&set_atomicity_lock);
 }
 
-static void generic_set_all(void)
+void mtrr_generic_set_all(void)
 {
 	unsigned long mask, count;
 	unsigned long flags;
@@ -471,7 +471,7 @@ static void generic_set_all(void)
 	
 }
 
-static void generic_set_mtrr(unsigned int reg, unsigned long base,
+void mtrr_generic_set(unsigned int reg, unsigned long base,
 			     unsigned long size, mtrr_type type)
 /*  [SUMMARY] Set variable MTRR register on the local CPU.
     <reg> The register to set.
@@ -514,7 +514,7 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
 	local_irq_restore(flags);
 }
 
-int generic_validate_add_page(unsigned long base, unsigned long size, unsigned int type)
+int mtrr_generic_validate_add_page(unsigned long base, unsigned long size, unsigned int type)
 {
 	unsigned long lbase, last;
 
@@ -549,7 +549,7 @@ int generic_validate_add_page(unsigned long base, unsigned long size, unsigned i
 }
 
 
-static int generic_have_wrcomb(void)
+int mtrr_generic_have_wrcomb(void)
 {
 	unsigned long config;
 	rdmsrl(MSR_MTRRcap, config);
@@ -565,10 +565,10 @@ int positive_have_wrcomb(void)
  */
 const struct mtrr_ops generic_mtrr_ops = {
 	.use_intel_if      = 1,
-	.set_all	   = generic_set_all,
-	.get               = generic_get_mtrr,
-	.get_free_region   = generic_get_free_region,
-	.set               = generic_set_mtrr,
-	.validate_add_page = generic_validate_add_page,
-	.have_wrcomb       = generic_have_wrcomb,
+	.set_all	   = mtrr_generic_set_all,
+	.get               = mtrr_generic_get,
+	.get_free_region   = mtrr_generic_get_free_region,
+	.set               = mtrr_generic_set,
+	.validate_add_page = mtrr_generic_validate_add_page,
+	.have_wrcomb       = mtrr_generic_have_wrcomb,
 };
