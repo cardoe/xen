@@ -265,7 +265,7 @@ int mtrr_generic_get_free_region(unsigned long base, unsigned long size, int rep
 	if (replace_reg >= 0 && replace_reg < max)
 		return replace_reg;
 	for (i = 0; i < max; ++i) {
-		mtrr_if->get(i, &lbase, &lsize, &ltype);
+		mtrr_generic_get(i, &lbase, &lsize, &ltype);
 		if (lsize == 0)
 			return i;
 	}

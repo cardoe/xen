@@ -58,8 +58,6 @@ static DEFINE_MUTEX(mtrr_mutex);
 u64 __read_mostly size_or_mask;
 u64 __read_mostly size_and_mask;
 
-const struct mtrr_ops *__read_mostly mtrr_if = NULL;
-
 static void set_mtrr(unsigned int reg, unsigned long base,
 		     unsigned long size, mtrr_type type);
 
@@ -82,7 +80,7 @@ static const char *mtrr_attrib_to_str(int x)
 /*  Returns non-zero if we have the write-combining memory type  */
 static int have_wrcomb(void)
 {
-	return (mtrr_if->have_wrcomb ? mtrr_if->have_wrcomb() : 0);
+	return mtrr_generic_have_wrcomb();
 }
 
 /*  This function returns the number of variable MTRRs  */
@@ -150,9 +148,9 @@ static void ipi_handler(void *info)
 	if (data->smp_reg == ~0U) /* update all mtrr registers */
 		/* At the cpu hot-add time this will reinitialize mtrr 
  		 * registres on the existing cpus. It is ok.  */
-		mtrr_if->set_all();
+		mtrr_generic_set_all();
 	else /* single mtrr register update */
-		mtrr_if->set(data->smp_reg, data->smp_base, 
+		mtrr_generic_set(data->smp_reg, data->smp_base,
 			     data->smp_size, data->smp_type);
 
 	atomic_dec(&data->count);
@@ -200,7 +198,7 @@ static inline int types_compatible(mtrr_type type1, mtrr_type type2) {
  * until it hits 0 and proceed. We set the data.gate flag and reset data.count.
  * Meanwhile, they are waiting for that flag to be set. Once it's set, each 
  * CPU goes through the transition of updating MTRRs. The CPU vendors may each do it 
- * differently, so we call mtrr_if->set() callback and let them take care of it.
+ * differently, so we call mtrr_generic_set() callback and let them take care of it.
  * When they're done, they again decrement data->count and wait for data.gate to 
  * be reset. 
  * When we finish, we wait for data.count to hit 0 and toggle the data.gate flag.
@@ -252,9 +250,9 @@ static void set_mtrr(unsigned int reg, unsigned long base,
 	if (reg == ~0U)  /* update all mtrr registers */
 		/* at boot or resume time, this will reinitialize the mtrrs on 
 		 * the bp. It is ok. */
-		mtrr_if->set_all();
+		mtrr_generic_set_all();
 	else /* update the single mtrr register */
-		mtrr_if->set(reg,base,size,type);
+		mtrr_generic_set(reg, base, size, type);
 
 	/* wait for the others */
 	while (atomic_read(&data.count))
@@ -317,10 +315,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	mtrr_type ltype;
 	unsigned long lbase, lsize;
 
-	if (!mtrr_if)
-		return -ENXIO;
-		
-	if ((error = mtrr_if->validate_add_page(base,size,type)))
+	if ((error = mtrr_generic_validate_add_page(base,size,type)))
 		return error;
 
 	if (type >= MTRR_NUM_TYPES) {
@@ -351,7 +346,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	/*  Search for existing MTRR  */
 	mutex_lock(&mtrr_mutex);
 	for (i = 0; i < num_var_ranges; ++i) {
-		mtrr_if->get(i, &lbase, &lsize, &ltype);
+		mtrr_generic_get(i, &lbase, &lsize, &ltype);
 		if (!lsize || base > lbase + lsize - 1 || base + size - 1 < lbase)
 			continue;
 		/*  At this point we know there is some kind of overlap/enclosure  */
@@ -386,7 +381,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		goto out;
 	}
 	/*  Search for an empty MTRR  */
-	i = mtrr_if->get_free_region(base, size, replace);
+	i = mtrr_generic_get_free_region(base, size, replace);
 	if (i >= 0) {
 		set_mtrr(i, base, size, type);
 		if (likely(replace < 0))
@@ -487,15 +482,12 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	unsigned long lbase, lsize;
 	int error = -EINVAL;
 
-	if (!mtrr_if)
-		return -ENXIO;
-
 	max = num_var_ranges;
 	mutex_lock(&mtrr_mutex);
 	if (reg < 0) {
 		/*  Search for existing MTRR  */
 		for (i = 0; i < max; ++i) {
-			mtrr_if->get(i, &lbase, &lsize, &ltype);
+			mtrr_generic_get(i, &lbase, &lsize, &ltype);
 			if (lbase == base && lsize == size) {
 				reg = i;
 				break;
@@ -511,7 +503,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		printk(KERN_WARNING "mtrr: register: %d too big\n", reg);
 		goto out;
 	}
-	mtrr_if->get(reg, &lbase, &lsize, &ltype);
+	mtrr_generic_get(reg, &lbase, &lsize, &ltype);
 	if (lsize < 1) {
 		printk(KERN_WARNING "mtrr: MTRR %d not used\n", reg);
 		goto out;
@@ -569,22 +561,19 @@ struct mtrr_value {
 void __init mtrr_bp_init(void)
 {
 	if (cpu_has_mtrr) {
-		mtrr_if = &generic_mtrr_ops;
 		size_or_mask = ~((1ULL << (paddr_bits - PAGE_SHIFT)) - 1);
 		size_and_mask = ~size_or_mask & 0xfffff00000ULL;
 	}
 
-	if (mtrr_if) {
-		set_num_var_ranges();
-		init_table();
-		if (use_intel())
-			get_mtrr_state();
-	}
+	set_num_var_ranges();
+	init_table();
+	if (use_intel())
+		get_mtrr_state();
 }
 
 void mtrr_ap_init(void)
 {
-	if (!mtrr_if || !use_intel() || hold_mtrr_updates_on_aps)
+	if (!use_intel() || hold_mtrr_updates_on_aps)
 		return;
 	/*
 	 * Ideally we should hold mtrr_mutex here to avoid mtrr entries changed,
@@ -630,13 +619,11 @@ void mtrr_bp_restore(void)
 {
 	if (!use_intel())
 		return;
-	mtrr_if->set_all();
+	mtrr_generic_set_all();
 }
 
 static int __init mtrr_init_finialize(void)
 {
-	if (!mtrr_if)
-		return 0;
 	if (use_intel())
 		mtrr_state_warn();
 	return 0;
