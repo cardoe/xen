@@ -556,11 +556,6 @@ int mtrr_generic_have_wrcomb(void)
 	return (config & (1ULL << 10));
 }
 
-int positive_have_wrcomb(void)
-{
-	return 1;
-}
-
 /* generic structure...
  */
 const struct mtrr_ops generic_mtrr_ops = {

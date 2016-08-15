@@ -42,8 +42,6 @@ int mtrr_generic_have_wrcomb(void);
 
 extern const struct mtrr_ops generic_mtrr_ops;
 
-extern int positive_have_wrcomb(void);
-
 /* library functions for processor-specific routines */
 struct set_mtrr_context {
 	unsigned long flags;

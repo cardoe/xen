@@ -77,12 +77,6 @@ static const char *mtrr_attrib_to_str(int x)
 	return (x <= 6) ? mtrr_strings[x] : "?";
 }
 
-/*  Returns non-zero if we have the write-combining memory type  */
-static int have_wrcomb(void)
-{
-	return mtrr_generic_have_wrcomb();
-}
-
 /*  This function returns the number of variable MTRRs  */
 static void __init set_num_var_ranges(void)
 {
@@ -324,7 +318,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	}
 
 	/*  If the type is WC, check that this processor supports it  */
-	if ((type == MTRR_TYPE_WRCOMB) && !have_wrcomb()) {
+	if ((type == MTRR_TYPE_WRCOMB) && !mtrr_generic_have_wrcomb()) {
 		printk(KERN_WARNING
 		       "mtrr: your processor doesn't support write-combining\n");
 		return -ENOSYS;
