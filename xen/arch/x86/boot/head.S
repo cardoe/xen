@@ -519,6 +519,7 @@ trampoline_setup:
 1:
         /* Switch to low-memory stack.  */
         mov     sym_phys(trampoline_phys),%edi
+        /* The stack ends 64kb after the location of trampoline_phys */
         lea     0x10000(%edi),%esp
         lea     trampoline_boot_cpu_entry-trampoline_start(%edi),%eax
         pushl   $BOOT_CS32

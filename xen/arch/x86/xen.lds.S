@@ -333,3 +333,10 @@ ASSERT(IS_ALIGNED(trampoline_start, 4), "trampoline_start misaligned")
 ASSERT(IS_ALIGNED(trampoline_end,   4), "trampoline_end misaligned")
 ASSERT(IS_ALIGNED(__bss_start,      8), "__bss_start misaligned")
 ASSERT(IS_ALIGNED(__bss_end,        8), "__bss_end misaligned")
+
+/* The trampolines and the low memory stack must fit in 64kb. In testing
+ * the low memory stack never exceeded 1kb so just require that the
+ * trampolines fit in 63kb, leaving 1kb for the stack.
+ */
+ASSERT((trampoline_end - trampoline_start) < KB(63),
+    "not enough room for trampolines and low memory stack")

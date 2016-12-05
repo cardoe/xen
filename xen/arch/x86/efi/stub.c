@@ -33,7 +33,7 @@ paddr_t __init noreturn efi_multiboot2(EFI_HANDLE ImageHandle,
      * not be directly supported by C compiler.
      */
     asm volatile(
-    "    call %2                      \n"
+    "    call *%2                     \n"
     "0:  hlt                          \n"
     "    jmp  0b                      \n"
        : "+c" (StdErr), "+d" (err) : "g" (StdErr->OutputString)
