@@ -89,12 +89,12 @@ multiboot2_header_start:
                    0, /* Number of the lines - no preference. */ \
                    0  /* Number of bits per pixel - no preference. */
 
-        /* Inhibit bootloader from calling ExitBootServices(). */
+        /* Request that ExitBootServices() not be called. */
         mb2ht_init MB2_HT(EFI_BS), MB2_HT(OPTIONAL)
 
         /* EFI64 entry point. */
         mb2ht_init MB2_HT(ENTRY_ADDRESS_EFI64), MB2_HT(OPTIONAL), \
-                   sym_phys(__efi64_start)
+                   sym_phys(__mb2_efi64_start)
 
         /* Multiboot2 header end tag. */
         mb2ht_init MB2_HT(END), MB2_HT(REQUIRED)
@@ -169,7 +169,7 @@ not_multiboot:
 
         .code64
 
-__efi64_start:
+__mb2_efi64_start:
         cld
 
         /* VGA is not available on EFI platforms. */
@@ -519,6 +519,7 @@ trampoline_setup:
 1:
         /* Switch to low-memory stack.  */
         mov     sym_phys(trampoline_phys),%edi
+        /* The stack ends 64kb after the location of trampoline_phys */
         lea     0x10000(%edi),%esp
         lea     trampoline_boot_cpu_entry-trampoline_start(%edi),%eax
         pushl   $BOOT_CS32

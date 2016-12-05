@@ -146,8 +146,6 @@ static void __init efi_arch_process_memory_map(EFI_SYSTEM_TABLE *SystemTable,
 {
     struct e820entry *e;
     unsigned int i;
-    /* Check for extra mem for mbi data if Xen is loaded via multiboot2 protocol. */
-    UINTN extra_mem = efi_enabled(EFI_LOADER) ? 0 : (64 << 10);
 
     /* Populate E820 table and check trampoline area availability. */
     e = e820map - 1;
@@ -170,8 +168,7 @@ static void __init efi_arch_process_memory_map(EFI_SYSTEM_TABLE *SystemTable,
             /* fall through */
         case EfiConventionalMemory:
             if ( !trampoline_phys && desc->PhysicalStart + len <= 0x100000 &&
-                 len >= cfg.size + extra_mem &&
-                 desc->PhysicalStart + len > cfg.addr )
+                 len >= cfg.size && desc->PhysicalStart + len > cfg.addr )
                 cfg.addr = (desc->PhysicalStart + len - cfg.size) & PAGE_MASK;
             /* fall through */
         case EfiLoaderCode:
@@ -685,6 +682,9 @@ paddr_t __init efi_multiboot2(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTa
     efi_tables();
     setup_efi_pci();
     efi_variables();
+
+    /* This is the maximum size of our trampoline + our low memory stack */
+    cfg.size = KB(64);
 
     if ( gop )
         efi_set_gop_mode(gop, gop_mode);
