@@ -180,6 +180,152 @@ not_multiboot:
 
         .code64
 
+.macro sendserial
+        mov     $0x3f8+5,%dx   # UART Line Status Register
+3:      in      %dx,%al
+        test    $0x20,%al      # Test THR Empty flag
+        je      3b
+        mov     $0x3f8+0,%dx   # UART Transmit Holding Register
+        mov     %bl,%al
+        outb    %al,%dx        # Send a character over the serial line
+.endm
+
+.macro serial str
+        push    %rax
+        push    %rbx
+        push    %rdx
+        mov     \str,%bl
+        sendserial
+        pop     %rdx
+        pop     %rbx
+        pop     %rax
+.endm
+
+.macro serial32 str
+        push    %eax
+        push    %ebx
+        push    %edx
+        mov     \str,%bl
+        sendserial
+        pop     %edx
+        pop     %ebx
+        pop     %eax
+.endm
+
+.macro hex_nibble reg
+        cmp     $10,%\reg
+        jae     1f
+        add     $0x30,%\reg
+        jmp     2f
+1:
+        add     $0x57,%\reg
+2:
+.endm
+
+.macro printbyte
+        # byte to print is in cl
+        push    %eax
+        push    %ebx
+        push    %edx
+        mov     %cl,%bl     # duplicate cl to bl
+        shr     $4,%bl      # >>4 upper nibble
+        and     $0x0F,%cl   # lower nibble
+        hex_nibble bl
+        hex_nibble cl
+        sendserial
+        mov     %cl,%bl     # lower nibble
+        sendserial
+        pop     %edx
+        pop     %ebx
+        pop     %eax
+.endm
+
+.macro printbyte64
+        # byte to print is in cl
+        push    %rax
+        push    %rbx
+        push    %rdx
+        mov     %cl,%bl     # duplicate cl to bl
+        shr     $4,%bl      # >>4 upper nibble
+        and     $0x0F,%cl   # lower nibble
+        hex_nibble bl
+        hex_nibble cl
+        sendserial
+        mov     %cl,%bl     # lower nibble
+        sendserial
+        pop     %rdx
+        pop     %rbx
+        pop     %rax
+.endm
+
+.macro printdword
+        # word to print is in ecx
+        push    %ecx
+        //shr     $24,%ecx    # shift right by 3 bytes
+        rol     $8,%ecx
+        printbyte
+        //movl    (%esp),%ecx
+        //shr     $16,%ecx    # shift right by 2 bytes
+        rol     $8,%ecx
+        printbyte
+        //movl    (%esp),%ecx
+        //shr     $8,%ecx     # shift right by 1 byte
+        rol     $8,%ecx
+        printbyte
+        //movl    (%esp),%ecx
+        rol     $8,%ecx
+        printbyte
+        pop     %ecx        # cleanup
+.endm
+
+.macro printdword64
+        # word to print is in ecx
+        push    %rcx
+        rol     $8,%rcx
+        printbyte64
+        rol     $8,%rcx
+        printbyte64
+        rol     $8,%rcx
+        printbyte64
+        rol     $8,%rcx
+        printbyte64
+        rol     $8,%rcx
+        printbyte64
+        rol     $8,%rcx
+        printbyte64
+        rol     $8,%rcx
+        printbyte64
+        rol     $8,%rcx
+        printbyte64
+        pop     %rcx        # cleanup
+.endm
+
+.macro printnewline
+        serial32 $0x0D
+        serial32 $0x0A
+.endm
+
+.macro printnewline64
+        serial $0x0D
+        serial $0x0A
+.endm
+
+.macro prettydword
+        # word to print is in ecx
+        serial32 $0x30
+        serial32 $0X78
+        printdword
+        printnewline
+.endm
+
+.macro prettydword64
+        # word to print is in ecx
+        serial $0x30
+        serial $0x78
+        printdword64
+        printnewline64
+.endm
+
 __efi64_start:
         cld
 
@@ -634,6 +780,31 @@ trampoline_setup:
         lea     trampoline_boot_cpu_entry-trampoline_start(%edi),%eax
         pushl   $BOOT_CS32
         push    %eax
+
+        push    %ecx
+        printnewline
+        mov     $0xDEADBEEF,%ecx
+        //push    %ecx
+        //mov     0(%esp),%ecx
+        prettydword
+        //pop     %ecx
+        mov     %es,%ecx
+        prettydword
+        mov     %edi,%ecx
+        prettydword
+        mov     %esi,%ecx
+        prettydword
+        mov     -4(%esp),%ecx
+        prettydword
+        mov     -8(%esp),%ecx
+        prettydword
+        mov     %eax,%ecx
+        prettydword
+        mov     %edi,%ecx
+        prettydword
+        mov     %esp,%ecx
+        prettydword
+        pop     %ecx
 
         /* Copy bootstrap trampoline to low memory, below 1MB. */
         mov     $sym_offs(trampoline_start),%esi
