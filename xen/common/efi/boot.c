@@ -942,8 +942,10 @@ static void __init efi_exit_boot(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *Syste
 
         efi_arch_pre_exit_boot();
 
+#if 0
         status = SystemTable->BootServices->ExitBootServices(ImageHandle,
                                                              map_key);
+#endif
         efi_bs = NULL;
         if ( status != EFI_INVALID_PARAMETER || retry )
             break;
