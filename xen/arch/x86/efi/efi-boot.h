@@ -172,7 +172,7 @@ static void __init efi_arch_process_memory_map(EFI_SYSTEM_TABLE *SystemTable,
             if ( !trampoline_phys && desc->PhysicalStart + len <= 0x100000 &&
                  len >= cfg.size + extra_mem &&
                  desc->PhysicalStart + len > cfg.addr )
-                cfg.addr = (desc->PhysicalStart + len - cfg.size) & PAGE_MASK;
+                cfg.addr = (desc->PhysicalStart + len - (cfg.size + extra_mem)) & PAGE_MASK;
             /* fall through */
         case EfiLoaderCode:
         case EfiLoaderData:
@@ -685,6 +685,14 @@ paddr_t __init efi_multiboot2(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTa
     efi_tables();
     setup_efi_pci();
     efi_variables();
+
+    cfg.addr = 0x100000;
+    cfg.size = (trampoline_end - trampoline_start) + (64 << 10);
+    if ( efi_bs->AllocatePages(AllocateMaxAddress, EfiLoaderData,
+                PFN_UP(cfg.size), &cfg.addr) != EFI_SUCCESS ) {
+        cfg.addr = 0;
+        PrintStr(L"Trampoline space cannot be allocated; will try fallback.\r\n");
+    }
 
     if ( gop )
         efi_set_gop_mode(gop, gop_mode);
