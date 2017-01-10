@@ -634,6 +634,32 @@ static char * __init cmdline_cook(char *p, const char *loader_name)
     return p;
 }
 
+#define UART_PORT "0x3f8"
+
+static void SERIALOUT(char x)
+{
+    asm volatile( \
+        "mov     $"UART_PORT"+5,%%dx\n\t"
+        "3:      in      %%dx,%%al\n\t"
+        "test    $0x20,%%al\n\t"
+        "je      3b\n\t"
+        "mov     $"UART_PORT"+0,%%dx\n\t"
+        "mov     %0,%%al\n\t"
+        "out     %%al,%%dx\n\t"
+        : // no outputs
+        : "b" ( x )
+        : "al", "dx"
+        );
+}
+
+static void printserial(char *wee)
+{
+    while (*wee != 0) {
+        SERIALOUT(*wee);
+        wee++;
+    }
+}
+
 void __init noreturn __start_xen(unsigned long mbi_p)
 {
     char *memmap_type = NULL;
@@ -651,6 +677,8 @@ void __init noreturn __start_xen(unsigned long mbi_p)
         .stop_bits = 1
     };
     struct xen_arch_domainconfig config = { .emulation_flags = 0 };
+
+    printserial("here I am\r\n");
 
     /* Critical region without IDT or TSS.  Any fault is deadly! */
 

@@ -106,8 +106,10 @@ static struct file __initdata ramdisk;
 static struct file __initdata xsm;
 static CHAR16 __initdata newline[] = L"\r\n";
 
-#define PrintStr(s) StdOut->OutputString(StdOut, s)
-#define PrintErr(s) StdErr->OutputString(StdErr, s)
+//#define PrintStr(s) StdOut->OutputString(StdOut, s)
+#define PrintStr(s) printserial(s)
+//#define PrintErr(s) StdErr->OutputString(StdErr, s)
+#define PrintErr(s) printserial(s)
 
 #ifdef CONFIG_ARM
 /*
@@ -328,7 +330,8 @@ static void __init PrintErrMesg(const CHAR16 *mesg, EFI_STATUS ErrCode)
         DisplayUint(ErrCode, 0);
         mesg = NULL;
     }
-    blexit(mesg);
+    PrintStr(newline);
+    //blexit(mesg);
 }
 
 static unsigned int __init get_argv(unsigned int argc, CHAR16 **argv,
@@ -680,17 +683,42 @@ static EFI_GRAPHICS_OUTPUT_PROTOCOL __init *efi_get_gop(void)
     UINTN info_size, size = 0;
     static EFI_GUID __initdata gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     unsigned int i;
+    void *interface;
+
+    PrintStr(L"efi_get_gop() start\r\n");
+
+    status = efi_bs->LocateProtocol(&gop_guid, NULL, &interface);
+    if (EFI_ERROR(status)) {
+        PrintErrMesg(L"LocateProtocol", status);
+    } else {
+        return interface;
+    }
 
     status = efi_bs->LocateHandle(ByProtocol, &gop_guid, NULL, &size, NULL);
-    if ( status == EFI_BUFFER_TOO_SMALL )
+    if ( status == EFI_BUFFER_TOO_SMALL ) {
+        PrintStr(L"LocateHandle GOP got ");
+        DisplayUint(size, 0);
+        PrintStr(L" size\r\n");
         status = efi_bs->AllocatePool(EfiLoaderData, size, (void **)&handles);
-    if ( !EFI_ERROR(status) )
+    } else {
+        PrintErrMesg(L"LocateHandle GOP", status);
+    }
+    if ( !EFI_ERROR(status) ) {
         status = efi_bs->LocateHandle(ByProtocol, &gop_guid, NULL, &size,
                                       handles);
-    if ( EFI_ERROR(status) )
+        PrintStr(L"LocateHandle GOP populating ");
+        DisplayUint(size, 0);
+        PrintStr(L" entries\r\n");
+    }
+    if ( EFI_ERROR(status) ) {
         size = 0;
+        PrintErrMesg(L"set size to 0", status);
+    }
     for ( i = 0; i < size / sizeof(*handles); ++i )
     {
+        PrintStr(L"HandleProtocol ");
+        DisplayUint(i, 0);
+        PrintStr(newline);
         status = efi_bs->HandleProtocol(handles[i], &gop_guid, (void **)&gop);
         if ( EFI_ERROR(status) )
             continue;
@@ -700,8 +728,11 @@ static EFI_GRAPHICS_OUTPUT_PROTOCOL __init *efi_get_gop(void)
     }
     if ( handles )
         efi_bs->FreePool(handles);
-    if ( EFI_ERROR(status) )
+    if ( EFI_ERROR(status) ) {
         gop = NULL;
+    }
+
+    PrintStr(L"efi_get_gop() done\r\n");
 
     return gop;
 }
@@ -914,34 +945,44 @@ static void __init efi_set_gop_mode(EFI_GRAPHICS_OUTPUT_PROTOCOL *gop, UINTN gop
         efi_arch_video_init(gop, info_size, mode_info);
 }
 
+
 static void __init efi_exit_boot(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 {
     EFI_STATUS status;
     UINTN info_size = 0, map_key;
     bool_t retry;
 
+    PrintStr(L"bs->GetMemoryMap() call to get the size\r\n");
+
     efi_bs->GetMemoryMap(&info_size, NULL, &map_key,
                          &efi_mdesc_size, &mdesc_ver);
     info_size += 8 * efi_mdesc_size;
     efi_memmap = efi_arch_allocate_mmap_buffer(info_size);
-    if ( !efi_memmap )
+    if ( !efi_memmap ) {
+        PrintStr(L"unable to allocate memory for EFI mem map\r\n");
         blexit(L"Unable to allocate memory for EFI memory map");
+    }
 
     for ( retry = 0; ; retry = 1 )
     {
+        PrintStr(L"bs->GetMemoryMap() call\r\n");
         efi_memmap_size = info_size;
         status = SystemTable->BootServices->GetMemoryMap(&efi_memmap_size,
                                                          efi_memmap, &map_key,
                                                          &efi_mdesc_size,
                                                          &mdesc_ver);
-        if ( EFI_ERROR(status) )
+        if ( EFI_ERROR(status) ) {
             PrintErrMesg(L"Cannot obtain memory map", status);
+        }
 
+        PrintStr(L"efi_arch_process_memory_map() call\r\n");
         efi_arch_process_memory_map(SystemTable, efi_memmap, efi_memmap_size,
                                     efi_mdesc_size, mdesc_ver);
 
+        PrintStr(L"efi_arch_pre_exit_boot() call\r\n");
         efi_arch_pre_exit_boot();
 
+        PrintStr(L"bs->ExitBootServices() call (commented out)\r\n");
 #if 0
         status = SystemTable->BootServices->ExitBootServices(ImageHandle,
                                                              map_key);

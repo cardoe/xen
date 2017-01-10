@@ -180,12 +180,14 @@ not_multiboot:
 
         .code64
 
+#define UART_PORT 0x3f8
+
 .macro sendserial
-        mov     $0x3f8+5,%dx   # UART Line Status Register
+        mov     $UART_PORT+5,%dx   # UART Line Status Register
 3:      in      %dx,%al
         test    $0x20,%al      # Test THR Empty flag
         je      3b
-        mov     $0x3f8+0,%dx   # UART Transmit Holding Register
+        mov     $UART_PORT+0,%dx   # UART Transmit Holding Register
         mov     %bl,%al
         outb    %al,%dx        # Send a character over the serial line
 .endm
@@ -469,6 +471,15 @@ run_bs:
 x86_32_switch:
         cli
 
+/*
+        push    %rcx
+        mov     $0xDEADBEEFCAFEBABE,%rcx
+        prettydword64
+        mov     %esi,%ecx
+        prettydword64
+        pop     %rcx
+*/
+
         /* Initialize GDTR. */
         add     %esi,gdt_boot_base(%rip)
         lgdt    gdt_boot_descr(%rip)
@@ -508,6 +519,11 @@ __start:
 
         /* Load default Xen image load base address. */
         mov     $sym_offs(__image_base__),%esi
+
+        mov %esi,%ecx
+        prettydword
+        mov $0xCAFEBABE,%ecx
+        prettydword
 
         /* Bootloaders may set multiboot{1,2}.mem_lower to a nonzero value. */
         xor     %edx,%edx

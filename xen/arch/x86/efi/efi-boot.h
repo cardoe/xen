@@ -9,6 +9,33 @@
 #include <asm/msr.h>
 #include <asm/processor.h>
 
+#define UART_PORT "0x3f8"
+
+static void SERIALOUT(char x)
+{
+    asm volatile( \
+        "mov     $"UART_PORT"+5,%%dx\n\t"
+        "3:      in      %%dx,%%al\n\t"
+        "test    $0x20,%%al\n\t"
+        "je      3b\n\t"
+        "mov     $"UART_PORT"+0,%%dx\n\t"
+        "mov     %0,%%al\n\t"
+        "out     %%al,%%dx\n\t"
+        : // no outputs
+        : "b" ( x )
+        : "al", "dx"
+        );
+}
+
+static void printserial(CHAR16 *wee)
+{
+    while (*wee != 0) {
+        SERIALOUT(*wee & 0xFF);
+        wee++;
+    }
+}
+
+
 static struct file __initdata ucode;
 static multiboot_info_t __initdata mbi = {
     .flags = MBI_MODULES | MBI_LOADERNAME
@@ -149,6 +176,18 @@ static void __init efi_arch_process_memory_map(EFI_SYSTEM_TABLE *SystemTable,
     /* Check for extra mem for mbi data if Xen is loaded via multiboot2 protocol. */
     UINTN extra_mem = efi_enabled(EFI_LOADER) ? 0 : (64 << 10);
 
+    PrintStr(L"efi_arch_process_memory_map() extra_mem = ");
+    DisplayUint(extra_mem, 0);
+    PrintStr(newline);
+
+    PrintStr(L"efi_arch_process_memory_map() map_size = ");
+    DisplayUint(map_size, 0);
+    PrintStr(newline);
+
+    PrintStr(L"efi_arch_process_memory_map() desc_size = ");
+    DisplayUint(desc_size, 0);
+    PrintStr(newline);
+
     /* Populate E820 table and check trampoline area availability. */
     e = e820map - 1;
     for ( e820nr = i = 0; i < map_size; i += desc_size )
@@ -171,8 +210,20 @@ static void __init efi_arch_process_memory_map(EFI_SYSTEM_TABLE *SystemTable,
         case EfiConventionalMemory:
             if ( !trampoline_phys && desc->PhysicalStart + len <= 0x100000 &&
                  len >= cfg.size + extra_mem &&
-                 desc->PhysicalStart + len > cfg.addr )
+                 desc->PhysicalStart + len > cfg.addr ) {
+                PrintStr(L"convent if true\r\n Start:");
+                DisplayUint(desc->PhysicalStart, 0);
+                PrintStr(L"\r\nlen: ");
+                DisplayUint(len, 0);
+                PrintStr(L"\r\ncfg.size: ");
+                DisplayUint(cfg.size, 0);
+                PrintStr(L"\r\ntrampoline_phys: ");
+                DisplayUint(trampoline_phys, 0);
+                PrintStr(L"\r\ncfg.addr: ");
                 cfg.addr = (desc->PhysicalStart + len - (cfg.size + extra_mem)) & PAGE_MASK;
+                DisplayUint(cfg.addr, 0);
+                PrintStr(L"\r\n");
+            }
             /* fall through */
         case EfiLoaderCode:
         case EfiLoaderData:
@@ -192,8 +243,10 @@ static void __init efi_arch_process_memory_map(EFI_SYSTEM_TABLE *SystemTable,
         if ( e820nr && type == e->type &&
              desc->PhysicalStart == e->addr + e->size )
             e->size += len;
-        else if ( !len || e820nr >= E820MAX )
+        else if ( !len || e820nr >= E820MAX ) {
+            PrintStr(L"not len or e820nr >= E820MAX\r\n");
             continue;
+        }
         else
         {
             ++e;
@@ -202,6 +255,7 @@ static void __init efi_arch_process_memory_map(EFI_SYSTEM_TABLE *SystemTable,
             e->type = type;
             ++e820nr;
         }
+
     }
 
 }
@@ -213,14 +267,22 @@ static void *__init efi_arch_allocate_mmap_buffer(UINTN map_size)
 
 static void __init efi_arch_pre_exit_boot(void)
 {
-    if ( trampoline_phys )
+    if ( trampoline_phys ) {
+        PrintStr(L"trampoline_phys is true\r\n");
         return;
+    }
 
-    if ( !cfg.addr )
+    if ( !cfg.addr ) {
+        PrintStr(L"blexit no mem for tramp\r\n");
         blexit(L"No memory for trampoline");
+    }
 
-    if ( efi_enabled(EFI_LOADER) )
+    if ( efi_enabled(EFI_LOADER) ) {
+        PrintStr(L"relocate tramopline: ");
+        DisplayUint(cfg.addr, 8);
+        PrintStr(L"\r\n");
         relocate_trampoline(cfg.addr);
+    }
 }
 
 static void __init noreturn efi_arch_post_exit_boot(void)
@@ -553,6 +615,8 @@ static void __init efi_arch_memory_setup(void)
     unsigned int i;
     EFI_STATUS status;
 
+    PrintStr(L"arch_memory_setup\r\n");
+
     /* Allocate space for trampoline (in first Mb). */
     cfg.addr = 0x100000;
     cfg.size = trampoline_end - trampoline_start;
@@ -660,30 +724,55 @@ static void efi_arch_flush_dcache_area(const void *vaddr, UINTN size) { }
 
 paddr_t __init efi_multiboot2(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 {
-    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = NULL;
     UINTN cols, gop_mode = ~0, rows;
+
+    // new line to start over
+    PrintStr(newline);
+    PrintStr(L"efi_multiboot2() start\r\n");
+
+    PrintStr(L"cfg.addr: ");
+    DisplayUint(cfg.addr, 8);
+    PrintStr(newline);
 
     __set_bit(EFI_BOOT, &efi_flags);
     __set_bit(EFI_RS, &efi_flags);
 
+    PrintStr(L"efi_init() call\r\n");
+
     efi_init(ImageHandle, SystemTable);
+
+    PrintStr(L"efi_console_set_mode() call\r\n");
 
     efi_console_set_mode();
 
+    PrintStr(L"StdOut->QueryMode() call\r\n");
+
     if ( StdOut->QueryMode(StdOut, StdOut->Mode->Mode,
-                           &cols, &rows) == EFI_SUCCESS )
+                           &cols, &rows) == EFI_SUCCESS ) {
+        PrintStr(L"QueryMode() == SUCCESS, efi_arch_console_init() call\r\n");
         efi_arch_console_init(cols, rows);
+    }
+
+    PrintStr(L"efi_get_gop() call\r\n");
 
     gop = efi_get_gop();
 
-    if ( gop )
+    if ( gop ) {
+        PrintStr(L"efi_find_gop_mode() call\r\n");
         gop_mode = efi_find_gop_mode(gop, 0, 0, 0);
+    }
 
+    PrintStr(L"efi_arch_edd() call\r\n");
     efi_arch_edd();
+    PrintStr(L"efi_arch_cpu() call\r\n");
     efi_arch_cpu();
 
+    PrintStr(L"efi_tables() call\r\n");
     efi_tables();
+    PrintStr(L"setup_efi_pci() call\r\n");
     setup_efi_pci();
+    PrintStr(L"efi_variables() call\r\n");
     efi_variables();
 
     cfg.addr = 0x100000;
@@ -694,12 +783,19 @@ paddr_t __init efi_multiboot2(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTa
         PrintStr(L"Trampoline space cannot be allocated; will try fallback.\r\n");
     }
 
-    if ( gop )
+    if ( gop ) {
+        PrintStr(L"efi_set_gop_mode() call\r\n");
         efi_set_gop_mode(gop, gop_mode);
+    }
 
+    PrintStr(L"efi_exit_boot() call\r\n");
     efi_exit_boot(ImageHandle, SystemTable);
 
     /* Return highest usable memory address below 1 MiB. */
+    PrintStr(L"cfg.addr: ");
+    DisplayUint(cfg.addr, 8);
+    PrintStr(newline);
+
     return cfg.addr;
 }
 

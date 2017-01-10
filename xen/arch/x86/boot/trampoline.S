@@ -110,6 +110,7 @@ trampoline_protmode_entry:
         and     %edi,%edx
         wrmsr
 1:
+        serial32 $0x64
 
         /* Set up EFER (Extended Feature Enable Register). */
         mov     bootsym_rel(cpuid_ext_features,4,%edi)
@@ -120,26 +121,32 @@ trampoline_protmode_entry:
         jnc     1f
         btsl    $_EFER_NX,%eax  /* No Execute     */
 1:      wrmsr
+        serial32 $0x65
 
         mov     $(X86_CR0_PG | X86_CR0_AM | X86_CR0_WP | X86_CR0_NE |\
                   X86_CR0_ET | X86_CR0_MP | X86_CR0_PE), %eax
         mov     %eax,%cr0
         jmp     1f
 1:
+        serial32 $0x66
 
         /* Now in compatibility mode. Long-jump into 64-bit mode. */
         ljmp    $BOOT_CS64,$bootsym_rel(start64,6)
 
         .code64
 start64:
+        serial $0x67
         /* Jump to high mappings. */
         movabs  $__high_start,%rax
         jmpq    *%rax
 
         .code32
 trampoline_boot_cpu_entry:
+        serial32 $0x59
         cmpb    $0,bootsym_rel(skip_realmode,5)
         jnz     .Lskip_realmode
+
+        serial32 $0x30
 
         /* Load pseudo-real-mode segments. */
         mov     $BOOT_PSEUDORM_DS,%eax
@@ -156,6 +163,8 @@ trampoline_boot_cpu_entry:
         .code16
 1:      mov     %eax,%cr0                 # CR0.PE = 0 (leave protected mode)
 
+        serial32 $0x30
+
         /* Load proper real-mode values into %cs, %ds, %es and %ss. */
         ljmp    bootsym_segrel(1f,2)
 1:      mov     %cs,%ax
@@ -163,10 +172,14 @@ trampoline_boot_cpu_entry:
         mov     %ax,%es
         mov     %ax,%ss
 
+        serial32 $0x31
+
         /* Initialise stack pointer and IDT, and enable irqs. */
         xor     %esp,%esp
         lidt    bootsym(rm_idt)
         sti
+
+        serial32 $0x32
 
         /*
          * Declare that our target operating mode is long mode.
@@ -219,6 +232,8 @@ trampoline_boot_cpu_entry:
         mov     %eax,%ss
 
 .Lskip_realmode:
+        serial32 $0x5A
+
         /* EBX == 0 indicates we are the BP (Boot Processor). */
         xor     %ebx,%ebx
 
