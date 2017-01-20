@@ -100,6 +100,9 @@ static void __init relocate_trampoline(unsigned long phys)
 {
     const s32 *trampoline_ptr;
 
+    if ( !efi_enabled(EFI_LOADER) || trampoline_phys )
+        return;
+
     trampoline_phys = phys;
     /* Apply relocations to trampoline. */
     for ( trampoline_ptr = __trampoline_rel_start;
@@ -210,12 +213,10 @@ static void *__init efi_arch_allocate_mmap_buffer(UINTN map_size)
 
 static void __init efi_arch_pre_exit_boot(void)
 {
-    if ( !trampoline_phys )
-    {
-        if ( !cfg.addr )
-            blexit(L"No memory for trampoline");
-        relocate_trampoline(cfg.addr);
-    }
+    if ( !cfg.addr )
+        blexit(L"No memory for trampoline");
+
+    relocate_trampoline(cfg.addr);
 }
 
 static void __init noreturn efi_arch_post_exit_boot(void)
@@ -550,7 +551,12 @@ static void __init efi_arch_memory_setup(void)
 
     /* Allocate space for trampoline (in first Mb). */
     cfg.addr = 0x100000;
-    cfg.size = trampoline_end - trampoline_start;
+
+    if ( efi_enabled(EFI_LOADER) )
+        cfg.size = trampoline_end - trampoline_start;
+    else
+        cfg.size = MB_TRAMPOLINE_SIZE + MB_TRAMPOLINE_STACK_SIZE + MBI_SIZE;
+
     status = efi_bs->AllocatePages(AllocateMaxAddress, EfiLoaderData,
                                    PFN_UP(cfg.size), &cfg.addr);
     if ( status == EFI_SUCCESS )
@@ -560,6 +566,9 @@ static void __init efi_arch_memory_setup(void)
         cfg.addr = 0;
         PrintStr(L"Trampoline space cannot be allocated; will try fallback.\r\n");
     }
+
+    if ( !efi_enabled(EFI_LOADER) )
+        return;
 
     /* Initialise L2 identity-map and boot-map page table entries (16MB). */
     for ( i = 0; i < 8; ++i )
@@ -652,6 +661,44 @@ static bool_t __init efi_arch_use_config_file(EFI_SYSTEM_TABLE *SystemTable)
 }
 
 static void efi_arch_flush_dcache_area(const void *vaddr, UINTN size) { }
+
+paddr_t __init efi_multiboot2(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
+{
+    EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+    UINTN cols, gop_mode = ~0, rows;
+
+    __set_bit(EFI_BOOT, &efi_flags);
+    __set_bit(EFI_RS, &efi_flags);
+
+    efi_init(ImageHandle, SystemTable);
+
+    efi_console_set_mode();
+
+    if ( StdOut->QueryMode(StdOut, StdOut->Mode->Mode,
+                           &cols, &rows) == EFI_SUCCESS )
+        efi_arch_console_init(cols, rows);
+
+    gop = efi_get_gop();
+
+    if ( gop )
+        gop_mode = efi_find_gop_mode(gop, 0, 0, 0);
+
+    efi_arch_edd();
+    efi_arch_cpu();
+
+    efi_tables();
+    setup_efi_pci();
+    efi_variables();
+    efi_arch_memory_setup();
+
+    if ( gop )
+        efi_set_gop_mode(gop, gop_mode);
+
+    efi_exit_boot(ImageHandle, SystemTable);
+
+    /* Return highest allocated memory address below 1 MiB. */
+    return cfg.addr + cfg.size;
+}
 
 /*
  * Local variables:
