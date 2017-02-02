@@ -14,5 +14,7 @@ extra-$(efi) += boot.init.o relocs-dummy.o runtime.o compat.o buildid.o
 %.o: %.ihex
 	$(OBJCOPY) -I ihex -O binary $< $@
 
+boot.init.o: buildid.o
+
 stub.o: $(extra-y)
 nogcov-$(efi) += stub.o
