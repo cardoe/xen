@@ -174,6 +174,7 @@ not_multiboot:
         mov     sym_esi(vga_text_buffer),%edi
 .Lsend_chr:
         mov     (%esi),%bl
+        inc     %esi
         test    %bl,%bl        # Terminate on '\0' sentinel
         je      .Lhalt
         mov     $0x3f8+5,%dx   # UART Line Status Register
