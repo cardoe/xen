@@ -361,9 +361,17 @@ static void dump_domains(unsigned char key)
             if ( !(v->vcpu_id & 0x3f) )
                 process_pending_softirqs();
 
-            printk("Notifying guest %d:%d (virq %d, port %d)\n",
-                   d->domain_id, v->vcpu_id,
-                   VIRQ_DEBUG, v->virq_to_evtchn[VIRQ_DEBUG]);
+            if (d->domain_id == 0) {
+                // backport venice-xen-4096-evtchns-in-dom0
+                printk("Notifying guest %d:%d (virq %d, port %d)\n",
+                        d->domain_id, v->vcpu_id,
+                        VIRQ_DEBUG, (v->virq_to_evtchn[VIRQ_DEBUG] /
+                        WORDS_PER_EVTCHN_SEL_BIT_XS62));
+            } else {
+                printk("Notifying guest %d:%d (virq %d, port %d)\n",
+                        d->domain_id, v->vcpu_id,
+                        VIRQ_DEBUG, v->virq_to_evtchn[VIRQ_DEBUG]);
+            }
             send_guest_vcpu_virq(v, VIRQ_DEBUG);
         }
     }

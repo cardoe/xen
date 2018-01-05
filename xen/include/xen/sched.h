@@ -60,6 +60,9 @@ extern domid_t hardware_domid;
 #define BITS_PER_EVTCHN_WORD(d) (has_32bit_shinfo(d) ? 32 : BITS_PER_XEN_ULONG)
 #endif
 
+// venice-xen-4096-evtchns-in-dom0 backport
+#define WORDS_PER_EVTCHN_SEL_BIT_XS62 4
+
 #define BUCKETS_PER_GROUP  (PAGE_SIZE/sizeof(struct evtchn *))
 /* Round size of struct evtchn up to power of 2 size */
 #define __RDU2(x)   (       (x) | (   (x) >> 1))

@@ -1269,7 +1269,11 @@ void evtchn_check_pollers(struct domain *d, unsigned int port)
 int evtchn_init(struct domain *d)
 {
     evtchn_2l_init(d);
-    d->max_evtchn_port = INT_MAX;
+    if (d->domain_id == 0) {
+        d->max_evtchn_port = 4096;
+    } else {
+        d->max_evtchn_port = INT_MAX;
+    }
 
     d->evtchn = alloc_evtchn_bucket(d, 0);
     if ( !d->evtchn )
