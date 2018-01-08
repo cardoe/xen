@@ -112,14 +112,19 @@ static void evtchn_2l_xs62_set_pending(struct vcpu *v, struct evtchn *evtchn)
     if ( test_and_set_bit(port, &shared_info(d, evtchn_pending)) )
         return;
 
+    printk("PENDING first test: %d : %d : %d\n", port,
+            port / BITS_PER_EVTCHN_WORD(d), port / BITS_PER_EVTCHN_WORD(d) / WORDS_PER_EVTCHN_SEL_BIT_XS62);
+
     if ( !test_bit        (port, &shared_info(d, evtchn_mask)) &&
          !test_and_set_bit(port / BITS_PER_EVTCHN_WORD(d) /
                            WORDS_PER_EVTCHN_SEL_BIT_XS62,
                            &vcpu_info(v, evtchn_pending_sel)) )
     {
+        printk("PENDING mark events pending: %d\n", port);
         vcpu_mark_events_pending(v);
     }
 
+    printk("PENDING check pollers: %d\n", port);
     evtchn_check_pollers(d, port);
 }
 
@@ -128,6 +133,7 @@ static void evtchn_2l_xs62_unmask(struct domain *d, struct evtchn *evtchn)
     struct vcpu *v = d->vcpu[evtchn->notify_vcpu_id];
     unsigned int port = evtchn->port;
 
+    printk("UNMASK: %d\n", port);
     /*
      * These operations must happen in strict order. Based on
      * evtchn_2l_set_pending() above.
@@ -138,6 +144,7 @@ static void evtchn_2l_xs62_unmask(struct domain *d, struct evtchn *evtchn)
                             WORDS_PER_EVTCHN_SEL_BIT_XS62,
                             &vcpu_info(v, evtchn_pending_sel)) )
     {
+        printk("UNMASK mark events pending: %d\n", port);
         vcpu_mark_events_pending(v);
     }
 }
@@ -147,6 +154,8 @@ static bool_t evtchn_2l_xs62_is_pending(struct domain *d, evtchn_port_t port)
     unsigned int max_ports = BITS_PER_EVTCHN_WORD(d) * BITS_PER_EVTCHN_WORD(d) *
         WORDS_PER_EVTCHN_SEL_BIT_XS62;
 
+    printk("is_pending: %d / %d\n", port, max_ports);
+
     ASSERT(port < max_ports);
     return port < max_ports && test_bit(port, &shared_info(d, evtchn_pending));
 }
@@ -155,6 +164,8 @@ static bool_t evtchn_2l_xs62_is_masked(struct domain *d, evtchn_port_t port)
 {
     unsigned int max_ports = BITS_PER_EVTCHN_WORD(d) * BITS_PER_EVTCHN_WORD(d) *
         WORDS_PER_EVTCHN_SEL_BIT_XS62;
+
+    printk("is_masked: %d / %d\n", port, max_ports);
 
     ASSERT(port < max_ports);
     return port >= max_ports || test_bit(port, &shared_info(d, evtchn_mask));
@@ -184,6 +195,7 @@ void evtchn_2l_init(struct domain *d)
 {
     // backport of venice-xen-4096-evtchns-in-dom0 from xs62
     if (d->domain_id == 0) {
+        printk("HERE: dom0 evtchn_2l_init()\n");
         d->evtchn_port_ops = &evtchn_port_ops_2l_xs62;
         d->max_evtchns = BITS_PER_EVTCHN_WORD(d) * BITS_PER_EVTCHN_WORD(d) *
             WORDS_PER_EVTCHN_SEL_BIT_XS62;
